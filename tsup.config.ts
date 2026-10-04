@@ -22,6 +22,8 @@ export default defineConfig([
     clean: true,
     entry: {
       index: 'src/index.ts',
+      'next/index': 'src/next/index.ts',
+      'next/edge': 'src/next/edge.ts',
       'next/tunnel/index': 'src/next/tunnel/index.ts',
     },
   },

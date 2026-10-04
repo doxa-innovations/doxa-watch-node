@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseArgs } from '../src/cli/args'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { deploy, deployTimestamp } from '../src/cli/deploy'
+import { copyServerSourceMaps, postbuild } from '../src/cli/postbuild'
 import { status } from '../src/cli/status'
 import { FakeServer } from './helpers/fake-server'
 
@@ -79,6 +83,50 @@ describe('status', () => {
   ])('exits 1 when %s', async (_name, arrange, message) => {
     arrange()
     expect(await status(print)).toBe(1)
+    expect(lines.join('\n')).toContain(message)
+  })
+})
+
+describe('postbuild', () => {
+  let dir: string
+  const write = (path: string, content = 'x'): void => {
+    mkdirSync(join(dir, path, '..'), { recursive: true })
+    writeFileSync(join(dir, path), content)
+  }
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'doxa-watch-postbuild-'))
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('copies the server source maps a Turbopack build left out of the standalone output', async () => {
+    write('.next/server/app/page.js')
+    write('.next/server/app/page.js.map', 'entry map')
+    write('.next/server/chunks/ssr/[root-of-the-server]__abc._.js.map', 'chunk map')
+    write('.next/standalone/server.js')
+    write('.next/standalone/.next/server/app/page.js')
+    write('.next/standalone/.next/server/app/page.js.map', 'already there')
+    write('.next/standalone/node_modules/next/package.json')
+
+    expect(await postbuild(parseArgs([dir]), print)).toBe(0)
+    expect(lines[0]).toContain('1 server source map copied')
+    expect(readFileSync(join(dir, '.next/standalone/.next/server/chunks/ssr/[root-of-the-server]__abc._.js.map'), 'utf8')).toBe('chunk map')
+    expect(readFileSync(join(dir, '.next/standalone/.next/server/app/page.js.map'), 'utf8')).toBe('already there') // never overwritten
+    expect(existsSync(join(dir, '.next/standalone/.next/server/app/page.js.map.map'))).toBe(false)
+  })
+
+  it('finds the app inside a monorepo-shaped standalone output and honours --dist-dir', () => {
+    write('build/server/chunks/a.js.map')
+    write('build/standalone/apps/web/build/server/chunks/a.js')
+    expect(copyServerSourceMaps(dir, 'build')).toBe(1)
+    expect(existsSync(join(dir, 'build/standalone/apps/web/build/server/chunks/a.js.map'))).toBe(true)
+  })
+
+  it.each([
+    ['no standalone output', () => write('.next/server/a.js.map'), 0, '0 server source maps'],
+    ['no build at all', () => undefined, 1, 'does not exist'],
+  ])('%s', async (_name, arrange, code, message) => {
+    arrange()
+    expect(await postbuild(parseArgs([dir]), print)).toBe(code)
     expect(lines.join('\n')).toContain(message)
   })
 })

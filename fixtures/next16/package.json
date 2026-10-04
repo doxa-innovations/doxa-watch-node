@@ -1,0 +1,21 @@
+{
+  "name": "doxa-watch-fixture-next16",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "next build && doxa-watch postbuild",
+    "start": "node .next/standalone/server.js"
+  },
+  "dependencies": {
+    "doxa-watch": "file:../../.pack/doxa-watch.tgz",
+    "next": "16.3.8",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "~5.9.0"
+  }
+}

@@ -32,15 +32,29 @@ export function installProcessSensor(): void {
   process.emit = patched as typeof process.emit
 }
 
+type SyncSink = { flushSync?: (budgetMs?: number) => void } | null
+
 /**
- * Final flush: `beforeExit` (the loop ran dry) and `SIGTERM`, each with the 2 s budget. If nobody else handles
- * SIGTERM the signal is re-raised afterwards so the process still dies of it; if the app (Next's server) handles it
- * and exits on its own, the `exit` hook posts whatever is still buffered from a child process.
+ * Final flush, each time with the 2 s budget:
+ *
+ * - `beforeExit` (the event loop ran dry): an ordinary flush.
+ * - `SIGTERM`, nobody else listening: flush, then re-raise the signal so the process still dies of it.
+ * - `SIGTERM`, the app handles it too (Next's server closes and calls `process.exit`): there is no telling how long
+ *   the process has left, so what is buffered is posted synchronously, from a short-lived child process.
+ * - `exit`: the same synchronous post for whatever was produced after that.
  */
 export function installShutdownHooks(): void {
   const runtime = getRuntime()
   if (runtime.installed.has('shutdown')) return
   runtime.installed.add('shutdown')
+
+  const flushSync = (): void => {
+    try {
+      ;(getRuntime().sink as SyncSink)?.flushSync?.()
+    } catch (error) {
+      debug('synchronous flush failed:', error)
+    }
+  }
 
   process.on('beforeExit', () => {
     void getRuntime().sink?.flush(getRuntime().config.shutdownBudgetMs)
@@ -48,26 +62,21 @@ export function installShutdownHooks(): void {
 
   const onSigterm = (): void => {
     const { sink, config } = getRuntime()
-    const alone = process.listenerCount('SIGTERM') === 1
-    const done = (): void => {
-      if (!alone) return
+    if (process.listenerCount('SIGTERM') > 1) {
+      flushSync()
+      return
+    }
+    const reraise = (): void => {
       process.removeListener('SIGTERM', onSigterm)
       process.kill(process.pid, 'SIGTERM')
     }
     if (sink === null) {
-      done()
+      reraise()
       return
     }
-    sink.flush(config.shutdownBudgetMs).then(done, done)
+    sink.flush(config.shutdownBudgetMs).then(reraise, reraise)
   }
   process.on('SIGTERM', onSigterm)
 
-  process.on('exit', () => {
-    const sink = getRuntime().sink as { flushSync?: (budgetMs?: number) => void } | null
-    try {
-      sink?.flushSync?.()
-    } catch (error) {
-      debug('exit flush failed:', error)
-    }
-  })
+  process.on('exit', flushSync)
 }

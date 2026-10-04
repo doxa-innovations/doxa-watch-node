@@ -10,6 +10,8 @@ import { getRuntime } from '../runtime'
 
 /** What a framework layer (the Next span processor, `onRequestError`) tells the request sensor about a request. */
 export interface RequestState {
+  /** The request as it came in (method, path, raw headers). */
+  request: RequestInfo
   /** Route pattern, e.g. `/deals/[id]`; `""` until known. */
   routePath: string
   /** `page` | `route` | `action` | `middleware` | `""`. */
@@ -94,6 +96,7 @@ const GRACE_MS = 500
 function observe(info: RequestInfo, response: http.ServerResponse, execution: Execution): void {
   const { config } = getRuntime()
   const state: RequestState = {
+    request: info,
     routePath: '',
     routeKind: '',
     routeModule: '',
