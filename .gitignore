@@ -1,0 +1,8 @@
+node_modules
+dist
+.pack
+.next
+fixtures/*/node_modules
+fixtures/*/package-lock.json
+*.tgz
+.DS_Store
