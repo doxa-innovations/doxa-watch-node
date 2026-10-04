@@ -9,7 +9,7 @@ import { getRuntime } from '../src/runtime'
 import type { RequestState } from '../src/sensors/http'
 import { type MemorySink, useMemorySink } from './helpers/sink'
 
-const EXTERNAL = ['doxa-watch', '@opentelemetry/api', '@opentelemetry/sdk-trace-base', 'source-map-js']
+const EXTERNAL = ['doxa-watch', '@opentelemetry/api', '@opentelemetry/sdk-trace-base', 'source-map-js', 'nodemailer']
 
 describe('withDoxaWatch', () => {
   it('sets the source-map options and keeps the SDK external, leaving the rest alone', () => {
@@ -18,7 +18,7 @@ describe('withDoxaWatch', () => {
       output: 'standalone',
       productionBrowserSourceMaps: true,
       serverExternalPackages: ['pg', ...EXTERNAL],
-      experimental: { typedRoutes: true, serverSourceMaps: true },
+      experimental: { serverMinification: false, typedRoutes: true, serverSourceMaps: true },
     })
   })
 
@@ -26,7 +26,14 @@ describe('withDoxaWatch', () => {
     ['an empty config', {}],
     ['undefined', undefined],
   ])('accepts %s', (_name, input) => {
-    expect(withDoxaWatch(input as Record<string, unknown>)).toEqual({ productionBrowserSourceMaps: true, serverExternalPackages: EXTERNAL, experimental: { serverSourceMaps: true } })
+    expect(withDoxaWatch(input as Record<string, unknown>)).toEqual({ productionBrowserSourceMaps: true, serverExternalPackages: EXTERNAL, experimental: { serverMinification: false, serverSourceMaps: true } })
+  })
+
+  it('turns server minification off for readable stack traces, unless the app chose a value itself', () => {
+    const experimental = (config: Record<string, unknown>): unknown => withDoxaWatch(config).experimental
+    expect(experimental({})).toEqual({ serverMinification: false, serverSourceMaps: true })
+    expect(experimental({ experimental: { serverMinification: true } })).toEqual({ serverMinification: true, serverSourceMaps: true })
+    expect(experimental({ experimental: { serverMinification: false } })).toEqual({ serverMinification: false, serverSourceMaps: true })
   })
 
   it('wraps a config function, sync or async, passing its arguments through', async () => {

@@ -2,6 +2,7 @@ import { captureError } from './capture'
 import { LOG_LEVELS, type LogLevel, type WatchUser } from './config'
 import { debug } from './debug'
 import { currentContext, currentExecution, emit } from './execution'
+import { command, job, scheduledTask } from './manual'
 import { buildLog } from './records/log'
 import { getRuntime } from './runtime'
 
@@ -42,6 +43,15 @@ export const watch = {
 
   /** `watch.log.info('message', { key: 'value' })` — one method per PSR-3 level. */
   log,
+
+  /** `watch.job('SendInvoice', { queue: 'default' }, async () => { … })` — one attempt of a job (`job-attempt`). */
+  job,
+
+  /** `watch.scheduledTask('nightly-sync', '0 2 * * *', async () => { … })` — one run of a scheduled task. */
+  scheduledTask,
+
+  /** `await watch.command('import-contacts', async () => { … })` — a standalone script; sends before it returns. */
+  command,
 
   /** Sends everything buffered and waits for it, for at most `budgetMs` (no limit when omitted). */
   async flush(budgetMs?: number): Promise<void> {
