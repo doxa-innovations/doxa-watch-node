@@ -3,6 +3,8 @@ import { debug, notice, setDebug } from './debug'
 import { type Runtime, getRuntime } from './runtime'
 import { installConsoleSensor } from './sensors/console'
 import { installHttpSensor } from './sensors/http'
+import { installNodemailerSensor } from './sensors/nodemailer'
+import { installPgSensor } from './sensors/pg'
 import { installProcessSensor, installShutdownHooks } from './sensors/process'
 import { installUndiciSensor } from './sensors/undici'
 import { Transport } from './transport/transport'
@@ -44,6 +46,8 @@ export function register(options: RegisterOptions = {}): Runtime {
     installConsoleSensor()
     installProcessSensor()
     installShutdownHooks()
+    installPgSensor()
+    installNodemailerSensor()
 
     debug(`doxa-watch ${SDK_VERSION} registered; reporting to ${config.baseUrl} as "${config.server}"`)
   } catch (error) {
