@@ -1,7 +1,7 @@
 # doxa-watch
 
 The Node / Next.js collector for Doxa Watch. It reports requests, exceptions, outgoing
-requests, logs and users from a Next.js server straight to Doxa Watch — there is no local agent to run.
+requests, queries, mail, jobs, logs and users from a Next.js server straight to Doxa Watch — there is no local agent to run.
 
 - Next.js 15 or 16, Node.js 18.18 or newer, Node.js runtime only.
 - Without `DOXA_WATCH_TOKEN` it prints one line at start-up and does nothing else.
@@ -54,6 +54,10 @@ export default withDoxaWatch(nextConfig)
 `@opentelemetry/api`, `@opentelemetry/sdk-trace-base` and `source-map-js` to `serverExternalPackages`, so that
 `output: "standalone"` copies them into the image. It accepts a config object, a function or an async function.
 
+It also keeps `nodemailer` external (like `pg`, which Next keeps external by itself), so that the SDK patches the
+copy your app uses, and sets `experimental.serverMinification: false` so that stack traces carry your function names
+instead of the minifier's. Set `experimental.serverMinification` yourself to keep your own value.
+
 ### 3. Build script
 
 ```json
@@ -79,6 +83,48 @@ variable.
 | Outgoing requests | Everything sent with `fetch` (undici), including connection failures (`status_code: 0`). |
 | Logs | `console.warn` / `console.error` (see `DOXA_WATCH_LOG_LEVEL`) and `watch.log.<level>()`. |
 | Users | `watch.setUser()` or the `resolveUser` callback. |
+| Queries | Everything sent through [`pg`](https://node-postgres.com) — also by drizzle, better-auth and other libraries that run on it: the statement with its placeholders, the database name, the duration and the line of your code that issued it. Bind values never leave the process. |
+| Mail | Every message sent through [nodemailer](https://nodemailer.com): transport, subject, the number of recipients and attachments, the duration and whether sending failed. Addresses are never sent. |
+| Jobs, scheduled tasks, commands | What you wrap in `watch.job`, `watch.scheduledTask` and `watch.command` (see *Manual API*). |
+
+### Queries
+
+Nothing to set up: when `pg` is installed, `register()` instruments it. A query made with `pool.query` is recorded
+once, as are queries on a client you checked out yourself; failed queries are recorded too.
+
+Values written into the statement text itself are part of the statement. Rewrite it with `redactQuery`:
+
+```ts
+registerDoxaWatch({
+  redactQuery: (query) => ({ sql: query.sql.replace(/'[^']*'/g, "'?'") }),
+})
+```
+
+If your server bundles `pg` (you removed it from `serverExternalPackages`, or you bundle a plain Node app), hand
+the SDK the copy you import:
+
+```ts
+import pg from 'pg'
+import { instrumentPg } from 'doxa-watch'
+
+instrumentPg(pg)
+```
+
+### Mail
+
+Nothing to set up either: every transporter made with `nodemailer.createTransport` reports its `sendMail` calls.
+To tell your messages apart in Doxa Watch, name them — the `watch` key is removed before nodemailer sees the options:
+
+```ts
+const message = { to, subject: 'Welcome aboard', html, watch: { name: 'WelcomeMail' } }
+await transporter.sendMail(message)
+```
+
+(With TypeScript, build the options in a variable as above: nodemailer's types do not know the `watch` key and
+reject it in an object written directly inside the call.)
+
+For a bundled nodemailer: `instrumentNodemailer(nodemailer)` with the module's default export, or with a transporter
+you already created.
 
 ## Environment variables
 
@@ -94,7 +140,7 @@ variable.
 | `DOXA_WATCH_VITALS_SAMPLE_RATE` | `1.0` | Reserved for web vitals. |
 | `DOXA_WATCH_LOG_LEVEL` | `warning` | Lowest level captured from `console.*` (`debug`, `info`, `warning`, `error`). `watch.log` always sends. |
 | `DOXA_WATCH_IGNORE_OUTGOING_REQUESTS` | `false` | Do not record outgoing requests. |
-| `DOXA_WATCH_IGNORE_QUERIES`, `DOXA_WATCH_IGNORE_MAIL` | `false` | Reserved for queries and mail. |
+| `DOXA_WATCH_IGNORE_QUERIES`, `DOXA_WATCH_IGNORE_MAIL` | `false` | Do not record queries / mail. |
 | `DOXA_WATCH_REDACT_HEADERS` | `authorization,cookie,proxy-authorization,x-xsrf-token` | Request headers whose values are replaced by `[N bytes redacted]`. |
 | `DOXA_WATCH_CAPTURE_EXCEPTION_SOURCE_CODE` | `true` | Send the code lines around each application frame. |
 | `DOXA_WATCH_DEBUG` | `false` | Print what the SDK is doing, and its own failures. |
@@ -113,7 +159,24 @@ watch.log.info('invoice sent', { invoice: 42 })       // debug, info, notice, wa
 await watch.flush()                                   // send what is buffered now and wait for it
 ```
 
-All of it is safe to call when the SDK is inert, and none of it throws.
+Work that is not a request — a queue worker, a cron job, a script — is recorded when you wrap it:
+
+```ts
+// One attempt of a job. The options are optional: queue, connection, attempt (1-based), jobId.
+await watch.job('SendInvoice', { queue: 'default' }, async () => { … })
+
+// One run of a scheduled task, with its cron expression. Optional fourth argument: { timezone }.
+await watch.scheduledTask('nightly-sync', '0 2 * * *', async () => { … })
+
+// A standalone script (node scripts/import.js). Starts the collector if nothing did, and sends before it returns.
+await watch.command('import-contacts', async () => { … })
+```
+
+Each wrapper returns what your function returns. Queries, fetches, mail, logs and exceptions inside belong to the
+job, task or command. If your function throws, the run is recorded as failed (exit code 1 for a command) together
+with the exception, and the error is thrown on to you. A job run inside a request stays on that request's trace.
+
+All of it is safe to call when the SDK is inert, and nothing the SDK does throws.
 
 Outside Next.js, start the collector yourself:
 
@@ -159,8 +222,9 @@ buffered is sent with a 2 second budget.
 
 - Edge runtime: nothing is recorded. Middleware on the Edge runtime (the default on Next 15) is not timed; Next 16's
   `proxy.ts` runs on Node.js and is.
-- Production builds are minified, so function names in a stack trace are the minified ones; files, lines and code
-  are the original ones.
+- Turbopack builds (the default from Next 16) minify server code whatever `experimental.serverMinification` says, so
+  function names in a stack trace are the minified ones there; files, lines and code are the original ones.
+- Queries are recorded for `pg` only; `pg-native` and other drivers are not. Mail is recorded for nodemailer only.
 - Request bodies are never sent.
 
 ## Development
@@ -170,6 +234,9 @@ npm test            # unit tests (Vitest)
 npm run typecheck
 npm run test:e2e    # packs the SDK, builds fixtures/next15 and fixtures/next16, runs their standalone servers
 ```
+
+The end-to-end run starts a throwaway Postgres container (`postgres:16-alpine`, or `E2E_POSTGRES_IMAGE`) on a free
+local port and removes it afterwards; without Docker the cases that need a database are skipped and say so.
 
 ## Licence
 
