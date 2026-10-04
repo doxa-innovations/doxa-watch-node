@@ -72,6 +72,19 @@ describe('errors', () => {
     expect(body!.errors).toEqual([{ name: 'TypeError', message: 'boom', stack: expect.stringContaining('at run ('), handled: false, code: '12345', route: '/deals/[id]', path: '/deals/981' }])
   })
 
+  it('does not send the stand-in for a Server Component error that error.tsx receives: the server reported the real one', () => {
+    const omitted =
+      'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+    captureException(Object.assign(errorAt(omitted), { digest: '2375321282' }))
+    vi.advanceTimersByTime(ERROR_FLUSH_MS)
+    expect(beacon).not.toHaveBeenCalled()
+
+    // It does not use up the page load's allowance, and an own error with a digest is still sent.
+    captureException(Object.assign(errorAt('render failed in the browser'), { digest: '99' }))
+    vi.advanceTimersByTime(ERROR_FLUSH_MS)
+    expect(sent()[0]!.errors).toEqual([expect.objectContaining({ message: 'render failed in the browser', handled: true, code: '99' })])
+  })
+
   it('falls back to the concrete pathname when the route is unknown, and never sends a query string', () => {
     vi.stubGlobal('location', { pathname: '/deals/981', search: '?token=secret', href: 'https://app.test/deals/981?token=secret' })
     captureException(errorAt('no route'))

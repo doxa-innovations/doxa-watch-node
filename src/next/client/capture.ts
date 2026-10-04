@@ -1,3 +1,4 @@
+import { isServerErrorStandIn } from '../stand-in'
 import { isSampled, page, pageLoadId, queueError, queueVital } from './send'
 
 /** Spec §5: at most 10 errors per page load. */
@@ -39,12 +40,14 @@ function pathname(): string {
 
 /**
  * Queues one error for the tunnel. Dropped: everything after the 10th error of this page load, an error already sent
- * (same name, message and top frame), `Script error.` (a cross-origin script: there is nothing to report), and errors
- * thrown from a browser extension's code. Never throws.
+ * (same name, message and top frame), `Script error.` (a cross-origin script: there is nothing to report), errors
+ * thrown from a browser extension's code, and React's stand-in for a Server Component error. Never throws.
  */
 export function report(error: unknown, handled: boolean): void {
   try {
     if (typeof window === 'undefined' || state.count >= MAX_ERRORS) return
+    // What error.tsx receives for a Server Component error: the server already reported the real one.
+    if (isServerErrorStandIn(error)) return
     const subject = (error !== null && typeof error === 'object' ? error : { message: error }) as Record<string, unknown>
     const name = text(subject.name || 'Error', 255)
     const message = text(subject.message, MAX_MESSAGE)

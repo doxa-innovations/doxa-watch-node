@@ -11,6 +11,9 @@ import { type MemorySink, useMemorySink } from './helpers/sink'
 
 const EXTERNAL = ['doxa-watch', '@opentelemetry/api', '@opentelemetry/sdk-trace-base', 'source-map-js', 'nodemailer']
 
+const OMITTED =
+  'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+
 describe('withDoxaWatch', () => {
   it('sets the source-map options and keeps the SDK external, leaving the rest alone', () => {
     const config = withDoxaWatch({ output: 'standalone', serverExternalPackages: ['pg', 'doxa-watch'], experimental: { typedRoutes: true }, productionBrowserSourceMaps: false })
@@ -151,6 +154,19 @@ describe('onRequestError', () => {
     expect(sink.records).toHaveLength(1)
     expect(sink.records[0]).toMatchObject({ t: 'exception', handled: false, message: 'boom', code: '123', execution_id: execution.id })
     expect(execution.exceptionPreview).toBe('boom')
+  })
+
+  it('does not report the error React throws in place of a Server Component error (the real one came first), but keeps its route', async () => {
+    const { execution, state } = requestExecution()
+    const context = { routerKind: 'App Router', routePath: '/portal/[token]', routeType: 'render', renderSource: 'server-rendering' }
+    await getRuntime().als.run(execution, () => onRequestError(Object.assign(new Error(OMITTED), { digest: '2703880843' }), { path: '/portal/1', method: 'GET', headers: {} }, context))
+    expect(sink.records).toHaveLength(0)
+    expect(execution.exceptionPreview).toBe('')
+    expect(state).toMatchObject({ routePath: '/portal/[token]', routeKind: 'page' })
+
+    // The same words without a digest are somebody's own error.
+    await getRuntime().als.run(execution, () => onRequestError(new Error(OMITTED), { path: '/portal/1', method: 'GET', headers: {} }, context))
+    expect(sink.records).toHaveLength(1)
   })
 
   it('does not overwrite a route a span already supplied; works outside a request; never rejects', async () => {

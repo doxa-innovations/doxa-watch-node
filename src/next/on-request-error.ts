@@ -2,6 +2,7 @@ import { captureError } from '../capture'
 import { debug } from '../debug'
 import { currentExecution } from '../execution'
 import { requestState } from '../sensors/http'
+import { isServerErrorStandIn } from './stand-in'
 
 /** What Next passes to `onRequestError` (next/dist/server/instrumentation/types). */
 export interface RequestErrorContext {
@@ -25,6 +26,7 @@ const KINDS: Record<string, string> = { render: 'page', route: 'route', action: 
 /**
  * Next's `onRequestError` instrumentation hook: an error nobody caught while serving a request. Reported as an
  * unhandled exception of that request, and the route Next names fills in `route_path` if no span has yet.
+ * React's stand-in for a Server Component error that was already reported is left out.
  * Never throws and never rejects.
  */
 export async function onRequestError(error: unknown, _request?: ErrorRequest, context?: RequestErrorContext): Promise<void> {
@@ -47,6 +49,9 @@ export async function onRequestError(error: unknown, _request?: ErrorRequest, co
         }
       }
     }
+
+    // The route above is still worth having; the error itself was already reported under its real name.
+    if (isServerErrorStandIn(error)) return
 
     captureError(error, { handled: false, execution })
   } catch (failure) {

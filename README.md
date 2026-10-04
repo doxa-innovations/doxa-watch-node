@@ -42,6 +42,25 @@ export function register() {
 
 In the Edge runtime both hooks do nothing, so the same file works for both runtimes.
 
+If `resolveUser` needs code that only runs on Node.js (a `pg` pool, better-auth, an ORM), a top-level import of it
+breaks the build of an app that has a `middleware.ts`: Next compiles `instrumentation.ts` for the Edge runtime as
+well. Import it inside the Node.js branch, which Next leaves out of the Edge build:
+
+```ts
+export { onRequestError } from 'doxa-watch/next'
+
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { register: registerDoxaWatch } = await import('doxa-watch/next')
+    const { resolveUser } = await import('./lib/watch-user') // imports your session code
+    registerDoxaWatch({ resolveUser })
+  }
+}
+```
+
+`resolveUser` runs for every recorded request: return `null` early when there is no session cookie, and remember a
+looked-up session for a short while instead of querying the database each time.
+
 ### 2. `next.config.ts`
 
 ```ts
@@ -140,7 +159,9 @@ read together.
 
 - **Errors.** At most 10 per page load; an error with the same name, message and top frame is sent once.
   `Script error.` (a cross-origin script, nothing to report) and errors thrown from a browser extension's code are
-  dropped. Errors from `captureException` are reported as handled, the others as unhandled. Stack frames are
+  dropped. So is the error `error.tsx` receives when a Server Component failed: in a production build it is React's
+  stand-in without the message, and the server has already reported the real error with its request.
+  Errors from `captureException` are reported as handled, the others as unhandled. Stack frames are
   resolved to your source files, with code lines, from the maps `postbuild` moved; a frame without a map is kept as
   it was built.
 - **Web vitals** come from Next's own `useReportWebVitals`. Each metric is sent once per page load and belongs to
