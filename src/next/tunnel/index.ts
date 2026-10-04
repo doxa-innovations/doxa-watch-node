@@ -189,7 +189,7 @@ export function createTunnel(options: TunnelOptions = {}): (request: Request) =>
       // last, as it is for a request (PROTOCOL §4.2).
       const tail = user === null ? [] : [buildUser(user)]
       if (exceptions.length > 0) sink.enqueue(exceptions, { immediate: true })
-      sink.enqueue([...vitals, ...tail])
+      if (vitals.length + tail.length > 0) sink.enqueue([...vitals, ...tail])
     } catch (error) {
       debug('tunnel failed:', error)
     }

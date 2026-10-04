@@ -81,7 +81,8 @@ export function copyServerSourceMaps(projectDir: string, distDir = '.next'): num
 export const BROWSER_MAPS = join('doxa-watch', 'maps')
 
 // The trailing comment a bundler leaves in a built file: `//# sourceMappingURL=x.js.map` or `/*# sourceMappingURL=x.css.map */`.
-const SOURCE_MAPPING_URL = /\n?(?:\/\/[#@] *sourceMappingURL=([^\n]*)|\/\*[#@] *sourceMappingURL=([^*\n]*)\*\/)[ \t\r\n]*$/
+// The line form must start its line: the same text at the end of a minified line is a string literal, not a comment.
+const SOURCE_MAPPING_URL = /(?:(?:^|\n)[ \t]*\/\/[#@] *sourceMappingURL=([^\n]*)|\n?\/\*[#@] *sourceMappingURL=([^*\n]*)\*\/)[ \t\r\n]*$/
 
 /**
  * Removes the `sourceMappingURL` comment at the end of a built `.js`/`.css` file. Returns the URL it named (`""` for

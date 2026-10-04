@@ -60,15 +60,147 @@ export default withDoxaWatch(nextConfig)
 { "scripts": { "build": "next build && doxa-watch postbuild" } }
 ```
 
-`doxa-watch postbuild` copies the server source maps into `.next/standalone`. Turbopack builds (the default from
-Next 16) leave the maps of the server chunks out of the standalone output; without them an exception is still
-reported, but with the location in the built file instead of your source file. With webpack the maps are already
-there and the command changes nothing.
+`doxa-watch postbuild` does two things after `next build`:
+
+- It copies the server source maps into `.next/standalone`. Turbopack builds (the default from Next 16) leave the
+  maps of the server chunks out of the standalone output; without them an exception is still reported, but with the
+  location in the built file instead of your source file. With webpack the maps are already there.
+- It takes the browser source maps out of the public folder: every `.next/static/**/*.map` moves to
+  `.next/doxa-watch/maps/` (and into `.next/standalone/.next/doxa-watch/maps/`), and the `sourceMappingURL` comments
+  are removed from the built `.js` and `.css` files. See *Browser errors and web vitals* below.
+
+Running it twice changes nothing. Do not leave it out: `withDoxaWatch` makes Next write browser source maps, and
+without `postbuild` they stay in `.next/static`, where anybody can download them.
 
 ### 4. Environment
 
 Set `DOXA_WATCH_TOKEN` (the environment token from Doxa Watch) where the server runs. That is the only required
 variable.
+
+## Browser errors and web vitals
+
+Three small files report what happens in the visitor's browser: uncaught errors, unhandled promise rejections,
+errors caught by your error boundaries, and the web vitals LCP, INP, CLS, FCP and TTFB.
+
+```tsx
+// app/doxa-watch.tsx
+'use client'
+
+export { DoxaWatchClient } from 'doxa-watch/next/client'
+```
+
+```tsx
+// app/layout.tsx
+import { DoxaWatchClient } from './doxa-watch'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <DoxaWatchClient />
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+```ts
+// app/api/doxa-watch/route.ts
+export { POST } from 'doxa-watch/next/tunnel'
+```
+
+```tsx
+// app/error.tsx and app/global-error.tsx
+'use client'
+
+import { captureException } from 'doxa-watch/next/client'
+import { useEffect } from 'react'
+
+export default function ErrorPage({ error }: { error: Error & { digest?: string } }) {
+  useEffect(() => captureException(error), [error])
+  return <p>Something went wrong.</p> // global-error.tsx renders its own <html> and <body>
+}
+```
+
+The first file is needed because `withDoxaWatch` keeps `doxa-watch` out of the server bundle: a layout is a server
+component, and it can only hand a client component to the browser through a `'use client'` file of your own app.
+Importing `DoxaWatchClient` from `doxa-watch/next/client` directly in a layout renders nothing and reports nothing.
+`captureException` can be imported directly, because `error.tsx` is itself a client file.
+
+**How it works.** The browser never talks to Doxa Watch. `<DoxaWatchClient />` (about 1.8 kB gzipped, no
+dependencies) posts small JSON batches to the route above with `navigator.sendBeacon` (or `fetch` with `keepalive`):
+shortly after an error, and when the page is hidden or left. The route builds the records on the server and sends
+them with everything else. Everything a page load reports carries one page-load id, so its errors and vitals can be
+read together.
+
+- **Errors.** At most 10 per page load; an error with the same name, message and top frame is sent once.
+  `Script error.` (a cross-origin script, nothing to report) and errors thrown from a browser extension's code are
+  dropped. Errors from `captureException` are reported as handled, the others as unhandled. Stack frames are
+  resolved to your source files, with code lines, from the maps `postbuild` moved; a frame without a map is kept as
+  it was built.
+- **Web vitals** come from Next's own `useReportWebVitals`. Each metric is sent once per page load and belongs to
+  the route the document was loaded on. The rating is the browser's; device class and browser name come from the
+  user agent.
+- **Route.** The route pattern (`/deals/[id]`) is rebuilt from `usePathname()` and `useParams()`, because Next has
+  no client API for it. An optional catch-all (`[[...slug]]`) reads as `[...slug]`; a parameter whose value equals
+  an earlier static segment of the path replaces that segment; without a match the concrete path is used.
+- **User.** The `resolveUser` callback given to `register()` is applied to the tunnel request (it carries the
+  visitor's cookies).
+- **Sampling.** `DOXA_WATCH_VITALS_SAMPLE_RATE` is applied by the tunnel, once per page load: the decision is a
+  function of the page-load id, so a page load reports all of its vitals or none. It is read where the server runs,
+  so it needs no rebuild. Optionally pass the same number as `<DoxaWatchClient vitalsSampleRate={0.25} />`: the
+  browser then makes the same decision itself and unsampled visitors send no vitals at all. Browser errors follow
+  `DOXA_WATCH_EXCEPTION_SAMPLE_RATE`.
+
+**The tunnel** answers `204` with an empty body whatever happens. It forwards nothing when the post is not from a
+page of the same origin (`sec-fetch-site`, else `Origin` against the request's host), is larger than 64 kB, comes
+from an IP that already sent 60 posts in the last minute (counted in memory, per server process), or is not the
+expected shape; inside a valid post, a single invalid item is dropped by itself. Without `DOXA_WATCH_TOKEN` it does
+nothing. To change the defaults:
+
+```ts
+// app/api/doxa-watch/route.ts
+import { createTunnel } from 'doxa-watch/next/tunnel'
+
+export const POST = createTunnel({
+  resolveUser: async (request) => null, // instead of the one given to register()
+  rateLimit: 60,                        // posts per IP per minute
+  maxBodyBytes: 64 * 1024,
+  mapsDir: '.next/doxa-watch/maps',     // if your dist directory is not .next
+})
+```
+
+If the route lives elsewhere, tell the client: `<DoxaWatchClient endpoint="/api/telemetry" />` (it must be on the
+same origin; only `/api/doxa-watch` is left out of the request records automatically — use `ignore` for another
+path).
+
+**Docker.** `postbuild` has already copied the maps into `.next/standalone`, and `.next/static` no longer contains
+any, so the usual two lines are enough:
+
+```dockerfile
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+```
+
+If your Dockerfile does not take `.next/standalone` as a whole, or runs `next build` in one stage and `doxa-watch
+postbuild` nowhere, add the build script from step 3 and this line:
+
+```dockerfile
+COPY --from=builder /app/.next/doxa-watch ./.next/doxa-watch
+```
+
+Without the maps folder browser errors are still reported, with the locations in the built files.
+
+**Privacy.**
+
+- The environment token never reaches the browser; the browser only knows the same-origin route.
+- Query strings and fragments are never sent: the client reports `location.pathname`, and the tunnel cuts anything
+  after `?` or `#` again.
+- Source maps are not published: after `postbuild` no `.map` file is under `/_next/static`, and `.next/doxa-watch`
+  is not served by Next.
+- The tunnel reads no file because a reported stack names it: maps are looked up only inside the maps folder.
+- No cookies, storage or fingerprinting: the page-load id is random and lives as long as the document.
 
 ## What is recorded
 
@@ -79,6 +211,8 @@ variable.
 | Outgoing requests | Everything sent with `fetch` (undici), including connection failures (`status_code: 0`). |
 | Logs | `console.warn` / `console.error` (see `DOXA_WATCH_LOG_LEVEL`) and `watch.log.<level>()`. |
 | Users | `watch.setUser()` or the `resolveUser` callback. |
+| Browser exceptions | `<DoxaWatchClient />` (uncaught errors, unhandled rejections) and `captureException` from `doxa-watch/next/client`, through the tunnel route. |
+| Web vitals | LCP, INP, CLS, FCP, TTFB per page load, with route, device class and browser. |
 
 ## Environment variables
 
@@ -91,7 +225,7 @@ variable.
 | `DOXA_WATCH_SERVER` | host name | Server name shown in Doxa Watch. |
 | `DOXA_WATCH_REQUEST_SAMPLE_RATE` | `1.0` | Share of requests recorded (0–1). |
 | `DOXA_WATCH_EXCEPTION_SAMPLE_RATE` | `1.0` | Chance that an exception in an unsampled request is recorded anyway, with its request. |
-| `DOXA_WATCH_VITALS_SAMPLE_RATE` | `1.0` | Reserved for web vitals. |
+| `DOXA_WATCH_VITALS_SAMPLE_RATE` | `1.0` | Share of page loads whose web vitals are recorded (0–1). |
 | `DOXA_WATCH_LOG_LEVEL` | `warning` | Lowest level captured from `console.*` (`debug`, `info`, `warning`, `error`). `watch.log` always sends. |
 | `DOXA_WATCH_IGNORE_OUTGOING_REQUESTS` | `false` | Do not record outgoing requests. |
 | `DOXA_WATCH_IGNORE_QUERIES`, `DOXA_WATCH_IGNORE_MAIL` | `false` | Reserved for queries and mail. |
@@ -162,6 +296,8 @@ buffered is sent with a 2 second budget.
 - Production builds are minified, so function names in a stack trace are the minified ones; files, lines and code
   are the original ones.
 - Request bodies are never sent.
+- Browser reporting is written for the App Router. With a `basePath`, pass the full path of the route as
+  `endpoint`. The tunnel's rate limit is per server process, not shared between replicas.
 
 ## Development
 
@@ -170,6 +306,8 @@ npm test            # unit tests (Vitest)
 npm run typecheck
 npm run test:e2e    # packs the SDK, builds fixtures/next15 and fixtures/next16, runs their standalone servers
 ```
+
+The end-to-end tests drive a real browser: run `npx playwright install chromium` once.
 
 ## Licence
 
