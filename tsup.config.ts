@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { type Options, defineConfig } from 'tsup'
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
@@ -14,12 +14,15 @@ const shared: Options = {
   external: ['next', 'react', 'react-dom'],
 }
 
+// Cleaned here, once, instead of with tsup's `clean`: the three builds below run side by side, and a build that
+// cleans also deletes the declaration files another build has already written (the browser entry's were lost).
+rmSync(new URL('./dist', import.meta.url), { recursive: true, force: true })
+
 // One entry per public subpath (see "exports" in package.json). Adding files under src/records, src/sensors or
 // src/next/{client,tunnel} needs no change here: they are pulled in through these entry points.
 export default defineConfig([
   {
     ...shared,
-    clean: true,
     entry: {
       index: 'src/index.ts',
       'next/index': 'src/next/index.ts',

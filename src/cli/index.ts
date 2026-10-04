@@ -10,7 +10,8 @@ Usage:
   doxa-watch deploy [deploy] [--ref <git ref>] [--name <name>] [--url <link>]
       Tell Doxa Watch that a deploy happened. Always exits 0.
   doxa-watch postbuild [--dist-dir .next]
-      Run after \`next build\`: copies the server source maps into the standalone output.
+      Run after \`next build\`: copies the server source maps into the standalone output and moves the
+      browser source maps out of the public folder (to <dist-dir>/doxa-watch/maps).
   doxa-watch status
       Check that Doxa Watch is reachable and accepts DOXA_WATCH_TOKEN.
 

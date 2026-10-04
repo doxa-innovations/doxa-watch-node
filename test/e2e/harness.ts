@@ -1,5 +1,5 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,6 +40,8 @@ export function buildFixture(fixture: Fixture): void {
   run('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefer-offline'], dir)
   run('npm', ['run', 'build'], dir) // next build && doxa-watch postbuild
   if (!existsSync(join(standaloneDir(fixture), 'server.js'))) throw new Error(`${fixture}: no standalone server.js after the build`)
+  // What a Dockerfile does next (`COPY .next/static ./.next/static`): the standalone server serves the assets itself.
+  cpSync(join(dir, '.next', 'static'), join(standaloneDir(fixture), '.next', 'static'), { recursive: true })
 }
 
 export function nextVersion(fixture: Fixture): string {

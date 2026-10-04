@@ -13,6 +13,11 @@ export interface ResolveOptions {
   mapDirs?: string[]
   /** Attach the ±5-line code window to application frames. Default true. */
   captureSource?: boolean
+  /**
+   * The stack was reported by another machine (a visitor's browser), so its paths are not to be trusted: maps are
+   * looked up under `mapDirs` only, and no file is ever read because a frame names it.
+   */
+  remote?: boolean
 }
 
 const CODE_WINDOW = 5
@@ -84,6 +89,8 @@ function mapCandidates(file: string, options: ResolveOptions): string[] {
     } catch {
       return candidates
     }
+  } else if (options.remote === true) {
+    // only `mapDirs`, below
   } else if (isAbsolute(file)) {
     candidates.push(`${file}.map`)
   } else {
@@ -172,7 +179,8 @@ function resolveFrame(raw: RawFrame, options: ResolveOptions, wantCode: boolean)
 
   if (raw.file === '' || raw.file.startsWith('node:')) return unresolved(raw.file === '' ? '[unknown file]' : raw.file)
 
-  const builtPath = toPath(raw.file)
+  const remote = options.remote === true
+  const builtPath = remote ? raw.file : toPath(raw.file)
 
   if (raw.line > 0) {
     for (const candidate of mapCandidates(builtPath, options)) {
@@ -205,7 +213,7 @@ function resolveFrame(raw: RawFrame, options: ResolveOptions, wantCode: boolean)
   }
 
   // No usable map: the frame is still sent, with the location as built (spec §7).
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(builtPath)) return unresolved(builtPath)
+  if (remote || /^[a-z][a-z0-9+.-]*:\/\//i.test(builtPath)) return unresolved(builtPath)
   const absolute = isAbsolute(builtPath) ? builtPath : resolve(options.projectRoot, builtPath)
   const frame = unresolved(relativeToRoot(absolute, options.projectRoot))
   // Plain Node (no bundler): the file on disk IS the source.
