@@ -18,7 +18,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "bin": {
-    "@doxa-innovations/watch": "./dist/cli/index.cjs"
+    "doxa-watch": "./dist/cli/index.cjs"
   },
   "exports": {
     ".": {
