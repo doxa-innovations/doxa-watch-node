@@ -9,14 +9,14 @@ import { getRuntime } from '../src/runtime'
 import type { RequestState } from '../src/sensors/http'
 import { type MemorySink, useMemorySink } from './helpers/sink'
 
-const EXTERNAL = ['doxa-watch', '@opentelemetry/api', '@opentelemetry/sdk-trace-base', 'source-map-js', 'nodemailer']
+const EXTERNAL = ['@doxa-innovations/watch', '@opentelemetry/api', '@opentelemetry/sdk-trace-base', 'source-map-js', 'nodemailer']
 
 const OMITTED =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('withDoxaWatch', () => {
   it('sets the source-map options and keeps the SDK external, leaving the rest alone', () => {
-    const config = withDoxaWatch({ output: 'standalone', serverExternalPackages: ['pg', 'doxa-watch'], experimental: { typedRoutes: true }, productionBrowserSourceMaps: false })
+    const config = withDoxaWatch({ output: 'standalone', serverExternalPackages: ['pg', '@doxa-innovations/watch'], experimental: { typedRoutes: true }, productionBrowserSourceMaps: false })
     expect(config).toEqual({
       output: 'standalone',
       productionBrowserSourceMaps: true,

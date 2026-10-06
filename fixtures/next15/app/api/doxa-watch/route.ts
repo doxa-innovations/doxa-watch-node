@@ -1,1 +1,1 @@
-export { POST } from 'doxa-watch/next/tunnel'
+export { POST } from '@doxa-innovations/watch/next/tunnel'

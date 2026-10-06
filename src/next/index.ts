@@ -1,7 +1,7 @@
 // doxa-watch/next — the Next.js server hook-in (Node.js runtime). The Edge runtime resolves `./edge` instead.
 //
 //   // instrumentation.ts
-//   export { register, onRequestError } from 'doxa-watch/next'
+//   export { register, onRequestError } from '@doxa-innovations/watch/next'
 //
 //   // next.config.ts
 //   export default withDoxaWatch(nextConfig)

@@ -1,1 +1,1 @@
-export { register, onRequestError } from 'doxa-watch/next'
+export { register, onRequestError } from '@doxa-innovations/watch/next'

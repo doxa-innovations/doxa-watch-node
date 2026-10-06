@@ -149,7 +149,7 @@ describe('a standalone script: watch.command without register()', () => {
   })
 
   /**
-   * Runs a CommonJS script from the fixture's directory, where `doxa-watch` and `pg` are installed. With `-e` the
+   * Runs a CommonJS script from the fixture's directory, where `@doxa-innovations/watch` and `pg` are installed. With `-e` the
    * first argument takes the place a script path has in `process.argv`.
    */
   function runScript(source: string, env: Record<string, string>): Promise<{ code: number | null; output: string }> {
@@ -166,7 +166,7 @@ describe('a standalone script: watch.command without register()', () => {
 
   it('registers by itself, records the command and its children, sends before it returns, and lets the process end', async () => {
     const script = `
-      const { watch } = require('doxa-watch')
+      const { watch } = require('@doxa-innovations/watch')
       watch.command('import-contacts', async () => {
         watch.log.info('importing')
         return 2
@@ -186,7 +186,7 @@ describe('a standalone script: watch.command without register()', () => {
   it('a failing command: exit code 1 on the record, the exception sent, and the script sees the error', async () => {
     watch.reset()
     const script = `
-      const { watch } = require('doxa-watch')
+      const { watch } = require('@doxa-innovations/watch')
       watch.command('import-contacts', async () => { throw new TypeError('bad file') })
         .catch((error) => { console.log('caught ' + error.message); process.exitCode = 3 })
     `
@@ -200,7 +200,7 @@ describe('a standalone script: watch.command without register()', () => {
   it.skipIf(databaseUrl === undefined)(`pg in plain Node: every call shape against a real Postgres, pooled queries once${databaseUrl === undefined ? ` — ${NO_DATABASE}` : ''}`, async () => {
     watch.reset()
     const script = `
-      const { watch } = require('doxa-watch')
+      const { watch } = require('@doxa-innovations/watch')
       const pg = require('pg')
       const out = {}
       watch.command('pg-shapes', async () => {

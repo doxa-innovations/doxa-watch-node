@@ -35,7 +35,7 @@ export function packSdk(): void {
 export function buildFixture(fixture: Fixture): void {
   const dir = fixtureDir(fixture)
   // Same version, new content: make npm unpack the tarball again.
-  rmSync(join(dir, 'node_modules', 'doxa-watch'), { recursive: true, force: true })
+  rmSync(join(dir, 'node_modules', '@doxa-innovations', 'watch'), { recursive: true, force: true })
   rmSync(join(dir, '.next'), { recursive: true, force: true })
   run('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefer-offline'], dir)
   run('npm', ['run', 'build'], dir) // next build && doxa-watch postbuild

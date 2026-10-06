@@ -50,7 +50,7 @@ const HEALTH = new Set([
   '/ping',
   '/up',
 ])
-/** The route the browser client reports to (`doxa-watch/next/tunnel`). */
+/** The route the browser client reports to (`@doxa-innovations/watch/next/tunnel`). */
 export const TUNNEL_PATH = '/api/doxa-watch'
 
 /** Static assets, `/_next/*`, health checks and the tunnel are never recorded (spec §3.4). */

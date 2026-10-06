@@ -1,4 +1,4 @@
-import { watch } from 'doxa-watch'
+import { watch } from '@doxa-innovations/watch'
 
 export const dynamic = 'force-dynamic'
 

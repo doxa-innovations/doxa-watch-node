@@ -1,4 +1,4 @@
-import { createTunnel } from 'doxa-watch/next/tunnel'
+import { createTunnel } from '@doxa-innovations/watch/next/tunnel'
 
 // The other fixture re-exports the ready-made POST; this one shows the options. A real app reads its session here.
 export const POST = createTunnel({

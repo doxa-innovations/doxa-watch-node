@@ -7,7 +7,7 @@
     "start": "node .next/standalone/server.js"
   },
   "dependencies": {
-    "doxa-watch": "file:../../.pack/doxa-watch.tgz",
+    "@doxa-innovations/watch": "file:../../.pack/doxa-watch.tgz",
     "next": "15.5.27",
     "nodemailer": "^7.0.0",
     "pg": "^8.13.0",

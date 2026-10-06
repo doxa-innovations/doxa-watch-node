@@ -1,4 +1,4 @@
-# doxa-watch
+# @doxa-innovations/watch
 
 The Node / Next.js collector for Doxa Watch. It reports requests, exceptions, outgoing
 requests, queries, mail, jobs, logs and users from a Next.js server straight to Doxa Watch — there is no local agent to run.
@@ -10,20 +10,20 @@ requests, queries, mail, jobs, logs and users from a Next.js server straight to 
 ## Install
 
 ```sh
-npm install doxa-watch
+npm install @doxa-innovations/watch
 ```
 
 ### 1. `instrumentation.ts`
 
 ```ts
-export { register, onRequestError } from 'doxa-watch/next'
+export { register, onRequestError } from '@doxa-innovations/watch/next'
 ```
 
 To pass options or callbacks, call it yourself:
 
 ```ts
-import { register as registerDoxaWatch } from 'doxa-watch/next'
-export { onRequestError } from 'doxa-watch/next'
+import { register as registerDoxaWatch } from '@doxa-innovations/watch/next'
+export { onRequestError } from '@doxa-innovations/watch/next'
 
 export function register() {
   registerDoxaWatch({
@@ -47,11 +47,11 @@ breaks the build of an app that has a `middleware.ts`: Next compiles `instrument
 well. Import it inside the Node.js branch, which Next leaves out of the Edge build:
 
 ```ts
-export { onRequestError } from 'doxa-watch/next'
+export { onRequestError } from '@doxa-innovations/watch/next'
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { register: registerDoxaWatch } = await import('doxa-watch/next')
+    const { register: registerDoxaWatch } = await import('@doxa-innovations/watch/next')
     const { resolveUser } = await import('./lib/watch-user') // imports your session code
     registerDoxaWatch({ resolveUser })
   }
@@ -64,12 +64,12 @@ looked-up session for a short while instead of querying the database each time.
 ### 2. `next.config.ts`
 
 ```ts
-import { withDoxaWatch } from 'doxa-watch/next'
+import { withDoxaWatch } from '@doxa-innovations/watch/next'
 
 export default withDoxaWatch(nextConfig)
 ```
 
-`withDoxaWatch` turns on `experimental.serverSourceMaps` and `productionBrowserSourceMaps`, and adds `doxa-watch`,
+`withDoxaWatch` turns on `experimental.serverSourceMaps` and `productionBrowserSourceMaps`, and adds `@doxa-innovations/watch`,
 `@opentelemetry/api`, `@opentelemetry/sdk-trace-base` and `source-map-js` to `serverExternalPackages`, so that
 `output: "standalone"` copies them into the image. It accepts a config object, a function or an async function.
 
@@ -109,7 +109,7 @@ errors caught by your error boundaries, and the web vitals LCP, INP, CLS, FCP an
 // app/doxa-watch.tsx
 'use client'
 
-export { DoxaWatchClient } from 'doxa-watch/next/client'
+export { DoxaWatchClient } from '@doxa-innovations/watch/next/client'
 ```
 
 ```tsx
@@ -130,14 +130,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```ts
 // app/api/doxa-watch/route.ts
-export { POST } from 'doxa-watch/next/tunnel'
+export { POST } from '@doxa-innovations/watch/next/tunnel'
 ```
 
 ```tsx
 // app/error.tsx and app/global-error.tsx
 'use client'
 
-import { captureException } from 'doxa-watch/next/client'
+import { captureException } from '@doxa-innovations/watch/next/client'
 import { useEffect } from 'react'
 
 export default function ErrorPage({ error }: { error: Error & { digest?: string } }) {
@@ -146,9 +146,9 @@ export default function ErrorPage({ error }: { error: Error & { digest?: string 
 }
 ```
 
-The first file is needed because `withDoxaWatch` keeps `doxa-watch` out of the server bundle: a layout is a server
+The first file is needed because `withDoxaWatch` keeps `@doxa-innovations/watch` out of the server bundle: a layout is a server
 component, and it can only hand a client component to the browser through a `'use client'` file of your own app.
-Importing `DoxaWatchClient` from `doxa-watch/next/client` directly in a layout renders nothing and reports nothing.
+Importing `DoxaWatchClient` from `@doxa-innovations/watch/next/client` directly in a layout renders nothing and reports nothing.
 `captureException` can be imported directly, because `error.tsx` is itself a client file.
 
 **How it works.** The browser never talks to Doxa Watch. `<DoxaWatchClient />` (about 1.8 kB gzipped, no
@@ -186,7 +186,7 @@ nothing. To change the defaults:
 
 ```ts
 // app/api/doxa-watch/route.ts
-import { createTunnel } from 'doxa-watch/next/tunnel'
+import { createTunnel } from '@doxa-innovations/watch/next/tunnel'
 
 export const POST = createTunnel({
   resolveUser: async (request) => null, // instead of the one given to register()
@@ -236,7 +236,7 @@ Without the maps folder browser errors are still reported, with the locations in
 | Outgoing requests | Everything sent with `fetch` (undici), including connection failures (`status_code: 0`). |
 | Logs | `console.warn` / `console.error` (see `DOXA_WATCH_LOG_LEVEL`) and `watch.log.<level>()`. |
 | Users | `watch.setUser()` or the `resolveUser` callback. |
-| Browser exceptions | `<DoxaWatchClient />` (uncaught errors, unhandled rejections) and `captureException` from `doxa-watch/next/client`, through the tunnel route. |
+| Browser exceptions | `<DoxaWatchClient />` (uncaught errors, unhandled rejections) and `captureException` from `@doxa-innovations/watch/next/client`, through the tunnel route. |
 | Web vitals | LCP, INP, CLS, FCP, TTFB per page load, with route, device class and browser. |
 | Queries | Everything sent through [`pg`](https://node-postgres.com) — also by drizzle, better-auth and other libraries that run on it: the statement with its placeholders, the database name, the duration and the line of your code that issued it. Bind values never leave the process. |
 | Mail | Every message sent through [nodemailer](https://nodemailer.com): transport, subject, the number of recipients and attachments, the duration and whether sending failed. Addresses are never sent. |
@@ -260,7 +260,7 @@ the SDK the copy you import:
 
 ```ts
 import pg from 'pg'
-import { instrumentPg } from 'doxa-watch'
+import { instrumentPg } from '@doxa-innovations/watch'
 
 instrumentPg(pg)
 ```
@@ -306,7 +306,7 @@ the environment.
 ## Manual API
 
 ```ts
-import { watch } from 'doxa-watch'
+import { watch } from '@doxa-innovations/watch'
 
 watch.captureException(error)                         // a handled error; attaches to the current request
 watch.setUser({ id, name, username })                 // who the current request belongs to
@@ -336,7 +336,7 @@ All of it is safe to call when the SDK is inert, and nothing the SDK does throws
 Outside Next.js, start the collector yourself:
 
 ```ts
-import { register } from 'doxa-watch'
+import { register } from '@doxa-innovations/watch'
 
 register() // reads the environment; accepts the same options as above
 ```
@@ -347,7 +347,7 @@ register() // reads the environment; accepts the same options as above
 If your app registers its own provider, pass `tracing: false` and add the processor to yours:
 
 ```ts
-import { DoxaWatchSpanProcessor, register } from 'doxa-watch/next'
+import { DoxaWatchSpanProcessor, register } from '@doxa-innovations/watch/next'
 
 register({ tracing: false })
 new NodeTracerProvider({ spanProcessors: [new DoxaWatchSpanProcessor(), /* yours */] }).register()

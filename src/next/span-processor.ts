@@ -47,7 +47,7 @@ function isServerAction(state: RequestState): boolean {
  * - `AppRouteRouteHandlers.runHandler`, `Node.runHandler`: kind `route`
  * - `Middleware.execute`: duration → `before_middleware`
  *
- * `register()` from `doxa-watch/next` installs it on a provider of its own. An app that already runs OpenTelemetry
+ * `register()` from `@doxa-innovations/watch/next` installs it on a provider of its own. An app that already runs OpenTelemetry
  * adds it to its provider instead: `new NodeTracerProvider({ spanProcessors: [new DoxaWatchSpanProcessor(), …] })`.
  */
 export class DoxaWatchSpanProcessor implements SpanProcessor {

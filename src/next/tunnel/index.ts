@@ -2,7 +2,7 @@
 // environment token: it posts small JSON batches here, and the records are built and sent from the server.
 //
 //   // app/api/doxa-watch/route.ts
-//   export { POST } from 'doxa-watch/next/tunnel'
+//   export { POST } from '@doxa-innovations/watch/next/tunnel'
 import { isAbsolute, resolve } from 'node:path'
 import type { Config, RequestInfo, WatchUser } from '../../config'
 import { debug } from '../../debug'
@@ -197,5 +197,5 @@ export function createTunnel(options: TunnelOptions = {}): (request: Request) =>
   }
 }
 
-/** The route handler: `export { POST } from 'doxa-watch/next/tunnel'`. */
+/** The route handler: `export { POST } from '@doxa-innovations/watch/next/tunnel'`. */
 export const POST: (request: Request) => Promise<Response> = createTunnel()

@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next'
-import { withDoxaWatch } from 'doxa-watch/next'
+import { withDoxaWatch } from '@doxa-innovations/watch/next'
 
 const nextConfig: NextConfig = {
   output: 'standalone',

@@ -14,7 +14,7 @@ export type RegisterOptions = ConfigOverrides
 
 /**
  * Starts the collector for this process: loads the configuration (environment, then `options`), authenticates, and
- * installs the sensors. Framework-free; `doxa-watch/next` wraps it. Safe to call more than once (the first call
+ * installs the sensors. Framework-free; `@doxa-innovations/watch/next` wraps it. Safe to call more than once (the first call
  * wins) and never throws. Without `DOXA_WATCH_TOKEN` it prints one line and does nothing else.
  */
 export function register(options: RegisterOptions = {}): Runtime {

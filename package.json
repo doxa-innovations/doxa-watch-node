@@ -1,5 +1,5 @@
 {
-  "name": "doxa-watch",
+  "name": "@doxa-innovations/watch",
   "version": "0.1.0",
   "description": "Node and Next.js collector for Doxa Watch: requests, exceptions, outgoing requests, logs and users, sent straight from the Node process.",
   "license": "MIT",
@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/doxa-innovations/doxa-watch-node.git"
   },
-  "keywords": ["doxa-watch", "monitoring", "nextjs", "observability", "nightwatch"],
+  "keywords": ["@doxa-innovations/watch", "monitoring", "nextjs", "observability", "nightwatch"],
   "engines": {
     "node": ">=18.18"
   },
@@ -18,7 +18,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "bin": {
-    "doxa-watch": "./dist/cli/index.cjs"
+    "@doxa-innovations/watch": "./dist/cli/index.cjs"
   },
   "exports": {
     ".": {

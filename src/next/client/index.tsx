@@ -4,7 +4,7 @@
 //   // app/doxa-watch.tsx — a client file of the app, because `withDoxaWatch` keeps this package out of the server
 //   // bundle and a server component can only hand a client component to the browser through the app's own bundle
 //   'use client'
-//   export { DoxaWatchClient } from 'doxa-watch/next/client'
+//   export { DoxaWatchClient } from '@doxa-innovations/watch/next/client'
 //
 //   // app/layout.tsx
 //   <DoxaWatchClient />

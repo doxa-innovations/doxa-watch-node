@@ -1,6 +1,6 @@
 'use client'
 
-import { captureException } from 'doxa-watch/next/client'
+import { captureException } from '@doxa-innovations/watch/next/client'
 
 export default function ItemPage() {
   return (
