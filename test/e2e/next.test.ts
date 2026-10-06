@@ -28,7 +28,7 @@ describe.each(selected)('%s: standalone server against a fake Doxa Watch', (fixt
       DOXA_WATCH_SERVER: 'fixture-web',
       UPSTREAM_URL: upstream.url,
     })
-    sdkVersion = (JSON.parse(readFileSync(join(standaloneDir(fixture), 'node_modules/doxa-watch/package.json'), 'utf8')) as { version: string }).version
+    sdkVersion = (JSON.parse(readFileSync(join(standaloneDir(fixture), 'node_modules/@doxa-innovations/watch/package.json'), 'utf8')) as { version: string }).version
   })
   afterAll(async () => {
     await app?.stop()
@@ -53,7 +53,7 @@ describe.each(selected)('%s: standalone server against a fake Doxa Watch', (fixt
 
   it('standalone output contains the SDK, its dependencies and the server source maps', () => {
     const dir = standaloneDir(fixture)
-    for (const path of ['node_modules/doxa-watch/dist/next/index.js', 'node_modules/@opentelemetry/api/package.json', 'node_modules/@opentelemetry/sdk-trace-base/package.json', 'node_modules/source-map-js/package.json']) {
+    for (const path of ['node_modules/@doxa-innovations/watch/dist/next/index.js', 'node_modules/@opentelemetry/api/package.json', 'node_modules/@opentelemetry/sdk-trace-base/package.json', 'node_modules/source-map-js/package.json']) {
       expect(existsSync(join(dir, path)) || existsSync(join(dir, path.replace('index.js', 'index.cjs'))), path).toBe(true)
     }
   })

@@ -61,7 +61,7 @@ describe.each(selected)('%s: the browser reports through the tunnel', (fixture: 
   }
 
   it('the image has the tunnel and the moved maps, and no map or map comment is left in the public folder', () => {
-    expect(existsSync(join(dir, 'node_modules/doxa-watch/dist/next/tunnel/index.js')) || existsSync(join(dir, 'node_modules/doxa-watch/dist/next/tunnel/index.cjs'))).toBe(true)
+    expect(existsSync(join(dir, 'node_modules/@doxa-innovations/watch/dist/next/tunnel/index.js')) || existsSync(join(dir, 'node_modules/@doxa-innovations/watch/dist/next/tunnel/index.cjs'))).toBe(true)
     const maps = filesUnder(join(dir, '.next/doxa-watch/maps'))
     expect(maps.length).toBeGreaterThan(3)
     expect(maps.every((path) => path.endsWith('.map'))).toBe(true)
